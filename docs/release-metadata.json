@@ -1,5 +1,5 @@
 {
-  "status": "release-candidate",
+  "status": "released",
   "distribution": "wakemarch",
   "license_spdx": "BSD-3-Clause",
   "authors": [
@@ -15,6 +15,6 @@
   "paper_doi": null,
   "software_doi": null,
   "paper_reproduced_package_version": null,
-  "publication_ready": false,
+  "publication_ready": true,
   "copyright_holder": "University of Bergen"
 }

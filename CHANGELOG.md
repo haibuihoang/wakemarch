@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Zenodo DOI in CITATION.cff and README (concept 10.5281/zenodo.23888293; 0.1.0: 10.5281/zenodo.23888295).
+
 ## 0.1.0 — 2026-11-02
 
 First public release.

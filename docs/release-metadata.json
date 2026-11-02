@@ -13,8 +13,11 @@
   "repository_url": "https://github.com/haibuihoang/wakemarch",
   "paper_title": null,
   "paper_doi": null,
-  "software_doi": null,
+  "software_doi": "10.5281/zenodo.23888293",
   "paper_reproduced_package_version": null,
   "publication_ready": true,
-  "copyright_holder": "University of Bergen"
+  "copyright_holder": "University of Bergen",
+  "software_doi_versions": {
+    "0.1.0": "10.5281/zenodo.23888295"
+  }
 }

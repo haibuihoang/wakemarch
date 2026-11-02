@@ -1,5 +1,8 @@
 # WakeMarch
 
+[![PyPI](https://img.shields.io/pypi/v/wakemarch)](https://pypi.org/project/wakemarch/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23888293.svg)](https://doi.org/10.5281/zenodo.23888293)
+
 WakeMarch is a steady, cross-plane marching wake model for a single yawed wind
 turbine. It resolves the curled (kidney-shaped) wake produced by the
 counter-rotating streamwise vortex pair of a yawed rotor, in uniform or

@@ -1,0 +1,53 @@
+name: Publish
+# Builds the distributions and uploads them with PyPI trusted publishing (no API
+# tokens). Manual runs go to TestPyPI or PyPI; a published GitHub release goes
+# to PyPI. Configure the trusted publisher on (Test)PyPI for this repository,
+# workflow "publish.yml" and environments "testpypi" / "pypi".
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Package index
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Refuse to publish with pending release metadata
+        run: |
+          if grep -rn "PENDING-D2" LICENSE CITATION.cff pyproject.toml; then
+            echo "Author/copyright metadata is still pending (PENDING-D2)." >&2; exit 1
+          fi
+          if grep -n "Private :: Do Not Upload" pyproject.toml; then
+            echo "Remove the 'Private :: Do Not Upload' classifier for a release." >&2; exit 1
+          fi
+      - run: python -m pip install build
+      - run: python -m build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'pypi' || inputs.target }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: ${{ (github.event_name != 'release' && inputs.target == 'testpypi') && 'https://test.pypi.org/legacy/' || '' }}

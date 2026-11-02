@@ -1,0 +1,20 @@
+{
+  "status": "pre-release",
+  "distribution": "wakemarch",
+  "license_spdx": "BSD-3-Clause",
+  "authors": [
+    {
+      "name": "Hoang Hai Bui",
+      "orcid": "0000-0003-4485-0325",
+      "affiliation": "University of Bergen"
+    }
+  ],
+  "owning_institution": "University of Bergen",
+  "repository_url": "https://github.com/haibuihoang/wakemarch",
+  "paper_title": null,
+  "paper_doi": null,
+  "software_doi": null,
+  "paper_reproduced_package_version": null,
+  "publication_ready": false,
+  "copyright_holder": "University of Bergen"
+}

@@ -1,0 +1,11 @@
+include README.md PROVENANCE.md pyproject.toml
+include CITATION.md CITATION.cff CHANGELOG.md LICENSE
+recursive-include docs *.md *.json *.png
+recursive-include tools *.py
+recursive-include examples *.py
+recursive-include examples *.ipynb
+recursive-include tests *.py
+prune examples/.ipynb_checkpoints
+global-exclude .DS_Store
+
+recursive-include src/wakemarch/data *.json *.txt

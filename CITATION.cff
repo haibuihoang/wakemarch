@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: >-
+  If you use WakeMarch, please cite it using these metadata. The paper
+  describing the model will be added here once it has a DOI.
+title: WakeMarch
+abstract: >-
+  Steady cross-plane marching wake model for a single yawed wind turbine with
+  curled wake shape.
+type: software
+authors:
+  - family-names: Bui
+    given-names: Hoang Hai
+    orcid: "https://orcid.org/0000-0003-4485-0325"
+    affiliation: University of Bergen
+version: 0.1.0.dev6
+license: BSD-3-Clause
+repository-code: "https://github.com/haibuihoang/wakemarch"
+keywords:
+  - wind energy
+  - wake model
+  - yaw
+  - wake steering
+  - curled wake

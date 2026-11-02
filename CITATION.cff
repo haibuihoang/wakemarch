@@ -12,7 +12,7 @@ authors:
     given-names: Hoang Hai
     orcid: "https://orcid.org/0000-0003-4485-0325"
     affiliation: University of Bergen
-version: 0.1.0.dev6
+version: 0.1.0rc1
 license: BSD-3-Clause
 repository-code: "https://github.com/haibuihoang/wakemarch"
 keywords:

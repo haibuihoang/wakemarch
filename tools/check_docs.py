@@ -6,6 +6,9 @@ import re
 from urllib.parse import unquote
 import wakemarch
 
+REPOSITORY_PREFIXES = ('https://github.com/haibuihoang/wakemarch/blob/main/',
+                       'https://raw.githubusercontent.com/haibuihoang/wakemarch/main/')
+
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
@@ -20,6 +23,13 @@ def main():
             continue
         source = path.read_text()
         for target in re.findall(r'\]\(([^)]+)\)', source):
+            # Absolute links into this repository (used by README for PyPI) are checked locally.
+            for prefix in REPOSITORY_PREFIXES:
+                if target.startswith(prefix):
+                    local = root/unquote(target[len(prefix):].split('#')[0])
+                    if not local.exists():
+                        raise AssertionError(f'{path}: broken repository link {target}')
+                    break
             if '://' in target or target.startswith('#'):
                 continue
             target = unquote(target.split('#')[0])

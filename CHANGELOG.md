@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Zenodo DOI of 0.2.0 (10.5281/zenodo.23920372) in CITATION.cff and release metadata.
+
 ## 0.2.0 — 2026-11-03
 
 - New `WakeResult.sample_cross_velocity(x, y, z, *, bounds="raise")`: cross-plane

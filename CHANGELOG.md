@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-11-03
 
+- New `WakeResult.sample_cross_velocity(x, y, z, *, bounds="raise")`: cross-plane
+  velocities `(v, w)` in m/s, the total in-plane flow (vortex-induced plus
+  entrainment) that the solver uses to transport the wake. Same coordinates and
+  bounds rules as `sample_deficit`; computed on first use. No numerical change to
+  the model: deficits, vorticity and all existing outputs are unchanged.
 - Zenodo DOI in CITATION.cff and README (concept 10.5281/zenodo.23888293; 0.1.0: 10.5281/zenodo.23888295).
 
 ## 0.1.0 — 2026-11-02

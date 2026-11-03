@@ -64,7 +64,8 @@ model = WakeModel(
 result = model.solve(max_dist_D=10)
 deficit = result.sample_deficit(x=5 * 126, y=0, z=90)
 velocity = result.sample_streamwise_velocity(x=5 * 126, y=0, z=90)
-print(deficit, velocity)  # m/s
+v, w = result.sample_cross_velocity(x=5 * 126, y=0, z=90)  # lateral, vertical
+print(deficit, velocity, v, w)  # m/s
 ```
 
 Progress is enabled by default. Jupyter uses a native HTML progress bar (no widget
@@ -111,6 +112,9 @@ or `Turbine.fixed(...)` for constant coefficients. See
 - Sampling accepts scalars or broadcastable arrays. `sample_deficit` includes
   reconstruction and the display ramp; `sample_streamwise_velocity` subtracts
   this from the same power-law background used by the model.
+  `sample_cross_velocity` returns the cross-plane velocities `(v, w)` (lateral,
+  vertical): the total in-plane flow the solver uses to transport the wake
+  (vortex-induced plus entrainment), without the display ramp.
 - Upstream of the tilted rotor (`x + y*tan(yaw) < 0`), deficit is zero. Outside
   downstream stored support the default is an error. `bounds="zero"` explicitly
   requests a zero-deficit extension (background streamwise velocity).

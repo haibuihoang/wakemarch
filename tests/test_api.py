@@ -115,6 +115,77 @@ class ResultTests(unittest.TestCase):
                                0.5 * r.marching_deficit[0, iz, iy], places=11)
 
 
+class CrossVelocityTests(unittest.TestCase):
+    """Public cross-plane velocities (v, w): sampling, bounds, kernel agreement, symmetry, sign."""
+
+    @classmethod
+    def setUpClass(cls):
+        numerics = Numerics(h_D=0.1)
+        cls.straight = WakeModel(**(PARAMS | {"yaw_deg": 0}), numerics=numerics).solve(3, progress=False)
+        cls.yawed = WakeModel(**PARAMS, numerics=numerics).solve(3, progress=False)
+        cls.mirrored = WakeModel(**(PARAMS | {"yaw_deg": -25}), numerics=numerics).solve(3, progress=False)
+
+    def test_scalar_list_and_broadcast_sampling(self):
+        r = self.yawed
+        v, w = r.sample_cross_velocity(252, 0, 90)
+        self.assertIsInstance(v, float)
+        self.assertIsInstance(w, float)
+        v2, w2 = r.sample_cross_velocity([[252], [200]], [0, 10, 20], 90)
+        self.assertEqual(v2.shape, (2, 3))
+        self.assertEqual(w2.shape, (2, 3))
+        self.assertEqual((v2[0, 0], w2[0, 0]), (v, w))
+
+    def test_bounds_upstream_and_bad_inputs(self):
+        r = self.yawed
+        self.assertEqual(r.sample_cross_velocity(-126, 0, 90), (0.0, 0.0))
+        for x, y, z in [(1e6, 0, 90), (126, 1e6, 90), (126, 0, 1e6)]:
+            with self.subTest(x=x, y=y, z=z):
+                with self.assertRaises(ValueError):
+                    r.sample_cross_velocity(x, y, z)
+                self.assertEqual(r.sample_cross_velocity(x, y, z, bounds="zero"), (0.0, 0.0))
+        for x, y, z in [(np.nan, 0, 90), (126, np.inf, 90), (126, 0, -1)]:
+            with self.subTest(x=x, y=y, z=z), self.assertRaises(ValueError):
+                r.sample_cross_velocity(x, y, z)
+        with self.assertRaises(ValueError):
+            r.sample_cross_velocity(126, 0, 90, bounds="ignore")
+
+    def test_matches_kernel_fields_at_grid_nodes(self):
+        r = self.straight            # yaw 0: physical x equals marching x_s
+        k = len(r.x) // 2
+        # The top row is left out: z + H - H can round just above the stored top.
+        zz, yy = np.meshgrid(r.z[:-1], r.y, indexing="ij")
+        v, w = r.sample_cross_velocity(r.x[k], yy, zz)
+        s = r._solver
+        np.testing.assert_allclose(v, s.v_hist[k, :-1], rtol=1e-12, atol=1e-12)
+        np.testing.assert_allclose(w, s.w_hist[k, :-1], rtol=1e-12, atol=1e-12)
+        np.testing.assert_array_equal(w[0], 0.0)          # no flow through the ground
+        self.assertGreater(np.abs(v).max(), 1e-3)         # the field is not trivially zero
+
+    def test_symmetry_without_yaw_and_mirror_with_yaw(self):
+        y = np.linspace(-150, 150, 13)
+        z = np.array([[30.], [90.], [150.]])
+        v, w = self.straight.sample_cross_velocity(252, y, z)
+        vm, wm = self.straight.sample_cross_velocity(252, -y, z)
+        np.testing.assert_allclose(v, -vm, rtol=0, atol=1e-12)
+        np.testing.assert_allclose(w, wm, rtol=0, atol=1e-12)
+        v, w = self.yawed.sample_cross_velocity(252, y, z)
+        vm, wm = self.mirrored.sample_cross_velocity(252, -y, z)
+        np.testing.assert_allclose(v, -vm, rtol=0, atol=1e-10)
+        np.testing.assert_allclose(w, wm, rtol=0, atol=1e-10)
+
+    def test_positive_yaw_pushes_wake_core_towards_negative_y(self):
+        v, _ = self.yawed.sample_cross_velocity(252, 0, 90)
+        self.assertLess(v, -0.02 * 8)
+
+    def test_no_side_effect_on_deficit(self):
+        model = WakeModel(**PARAMS, numerics=Numerics(h_D=0.1))
+        r = model.solve(1, progress=False)
+        before = (r.marching_deficit.copy(), r.sample_deficit(126, [0, 20], 90))
+        r.sample_cross_velocity(126, 0, 90)
+        np.testing.assert_array_equal(r.marching_deficit, before[0])
+        np.testing.assert_array_equal(r.sample_deficit(126, [0, 20], 90), before[1])
+
+
 class ProgressTests(unittest.TestCase):
     def test_progress_is_monotonic_and_preserves_arrays(self):
         model = WakeModel(**PARAMS, numerics=Numerics(h_D=0.1))

@@ -190,6 +190,31 @@ class WakeResult:
         stored support raise by default; ``bounds='zero'`` explicitly requests
         the historical zero-deficit extension. Negative heights are invalid.
         """
+        x, y, z = self._sampling_points(x, y, z, bounds)
+        # Flatten first so the original kernel also supports scalar/list inputs.
+        out = self._solver.sample_global(x.ravel(), y.ravel(), z.ravel()).reshape(x.shape)
+        return out.item() if out.ndim == 0 else out
+
+    def sample_cross_velocity(self, x, y, z, *, bounds="raise"):
+        """Cross-plane velocities ``(v, w)`` in m/s at broadcastable physical coordinates.
+
+        v is lateral (+y) and w vertical (+z). This is the total in-plane flow the
+        solver uses to transport the wake: the part induced by the streamwise
+        vorticity plus the entrainment flow from the streamwise velocity change,
+        with w = 0 at the ground. The near-wake display ramp of ``sample_deficit``
+        is not applied. Coordinates and ``bounds`` behave as in ``sample_deficit``;
+        upstream of the tilted rotor both components are zero. The fields are
+        computed once, on the first call.
+        """
+        x, y, z = self._sampling_points(x, y, z, bounds)
+        v, w = self._solver.sample_velocity(x.ravel(), y.ravel(), z.ravel())
+        v, w = v.reshape(x.shape), w.reshape(x.shape)
+        if v.ndim == 0:
+            return v.item(), w.item()
+        return v, w
+
+    def _sampling_points(self, x, y, z, bounds):
+        """Validate and broadcast physical sampling coordinates (shared by all samplers)."""
         if bounds not in ("raise", "zero"):
             raise ValueError("bounds must be 'raise' or 'zero'")
         x, y, z = np.broadcast_arrays(np.asarray(x, dtype=float),
@@ -202,9 +227,7 @@ class WakeResult:
                    | (z - s.H < s.z[0]) | (z - s.H > s.z[-1]))
         if bounds == "raise" and np.any((xs >= 0) & outside):
             raise ValueError("Sampling point is outside stored wake support; use bounds='zero' explicitly")
-        # Flatten first so the original kernel also supports scalar/list inputs.
-        out = s.sample_global(x.ravel(), y.ravel(), z.ravel()).reshape(x.shape)
-        return out.item() if out.ndim == 0 else out
+        return x, y, z
 
     def sample_streamwise_velocity(self, x, y, z, *, bounds="raise"):
         """Background power-law velocity minus reconstructed deficit, m/s.

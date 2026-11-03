@@ -100,6 +100,22 @@ else:
 assert result.sample_deficit(100*model.D, 0, model.H, bounds="zero") == 0
 ```
 
+### Cross-plane velocities
+
+`sample_cross_velocity` returns the lateral (`v`, along +y) and vertical (`w`,
+along +z) velocities in m/s, with the same coordinates and `bounds` rules as
+`sample_deficit`. They are the total in-plane flow that transports the wake in the
+solver: the flow induced by the streamwise vorticity (the counter-rotating vortex
+pair of a yawed rotor) plus the entrainment flow from the streamwise velocity
+change, with `w = 0` at the ground. The near-wake display ramp is not applied.
+The fields are computed on the first call (one Poisson solve per stored plane).
+
+```python
+v, w = result.sample_cross_velocity(5*model.D, yy, zz)
+assert v.shape == w.shape == (51, 81)
+assert result.sample_cross_velocity(-model.D, 0, model.H) == (0.0, 0.0)
+```
+
 ## Numerical settings and results
 
 | `Numerics` field | Default | Meaning |

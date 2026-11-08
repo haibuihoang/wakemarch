@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.x follow-up
+
+- Zenodo DOI of 0.3.0 (10.5281/zenodo.24057965) in CITATION.cff and release metadata.
+
 ## 0.3.0 — 2026-11-08
 
 New model (manuscript of the accompanying paper, Section 2); outputs differ from 0.2.

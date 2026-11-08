@@ -6,6 +6,8 @@ import unittest
 from unittest.mock import patch
 
 import numpy as np
+from scipy.sparse import diags, identity
+from scipy.sparse.linalg import spsolve
 
 from wakemarch import Numerics, WakeModel
 
@@ -72,9 +74,13 @@ class ResultTests(unittest.TestCase):
         expected = 8 * (z / 90) ** 0.1 - r.sample_deficit(126, 0, z)
         np.testing.assert_array_equal(actual, expected)
 
-    def test_upstream_is_zero(self):
-        self.assertEqual(self.result.sample_deficit(-126, 0, 90), 0)
-        self.assertEqual(self.result.sample_streamwise_velocity(-126, 0, 90), 8)
+    def test_upstream_induction_zone(self):
+        # near field on (default): the induction zone decays upstream; off: zero upstream
+        d = self.result.sample_deficit([-378, -126, -10], 0, 90)
+        self.assertTrue(np.all(d > 0) and d[0] < d[1] < d[2])
+        off = WakeModel(**PARAMS, shear_alpha=0.1, near_field=False, numerics=Numerics(h_D=0.1)).solve(1, progress=False)
+        self.assertEqual(off.sample_deficit(-126, 0, 90), 0)
+        self.assertEqual(off.sample_streamwise_velocity(-126, 0, 90), 8)
 
     def test_default_bounds_error_and_explicit_extension(self):
         for x, y, z in [(1e6, 0, 90), (126, 1e6, 90), (126, 0, 1e6)]:
@@ -105,14 +111,79 @@ class ResultTests(unittest.TestCase):
         self.assertIsNot(later, self.result)
         np.testing.assert_array_equal(before, self.result.marching_deficit)
 
-    def test_near_ramp_is_applied(self):
-        r = self.result
-        iy = np.argmin(np.abs(r.y))
-        iz = np.argmin(np.abs(r.z_relative))
-        # Map exactly to x_s=0 despite floating-point placement of the y mesh.
-        x = -r.y[iy] * np.tan(np.radians(self.model.yaw_deg))
-        self.assertAlmostEqual(r.sample_deficit(x, r.y[iy], r.z[iz]),
-                               0.5 * r.marching_deficit[0, iz, iy], places=11)
+    def test_near_field_halves_the_deficit_at_the_rotor(self):
+        # vortex-cylinder near field: on the axis, half of the developed deficit at the rotor plane, the full value downstream
+        m = WakeModel(**PARAMS, hub_depth=0.0, numerics=Numerics(h_D=0.05))
+        r = m.solve(8, progress=False)
+        d0 = r._solver._p0["dU0"]
+        self.assertAlmostEqual(r.sample_deficit(0.0, 0.0, 90.0) / r.marching_deficit[0].max(), 0.5, delta=0.02)
+        # with the hub term: half of the initial (marched) profile at the rotor plane, also on the axis
+        h = WakeModel(**PARAMS, numerics=Numerics(h_D=0.05)).solve(2, progress=False)
+        iz = np.argmin(np.abs(h.z_relative)); iy = np.argmin(np.abs(h.y))
+        x0 = -h.y[iy] * np.tan(np.radians(PARAMS["yaw_deg"]))
+        self.assertAlmostEqual(h.sample_deficit(x0, h.y[iy], h.z[iz]) / h.marching_deficit[0, iz, iy], 0.5, delta=0.03)
+        far = r.sample_deficit(7 * 126.0, 0.0, 90.0)
+        raw = WakeModel(**PARAMS, hub_depth=0.0, near_field=False, numerics=Numerics(h_D=0.05)).solve(8, progress=False)
+        self.assertAlmostEqual(far, raw.sample_deficit(7 * 126.0, 0.0, 90.0), delta=0.01 * d0)
+
+
+class NearFieldAndBlockageTests(unittest.TestCase):
+    """Near-field display (vortex cylinder) and the blockage option: display only, continuous, switchable."""
+
+    @classmethod
+    def setUpClass(cls):
+        n = Numerics(h_D=0.1)
+        cls.on = WakeModel(**PARAMS, CQ=0.05, numerics=n).solve(4, progress=False)
+        cls.off = WakeModel(**PARAMS, CQ=0.05, near_field=False, numerics=n).solve(4, progress=False)
+        cls.area = 8.0 * 126 * 4.0 * 126
+        cls.blk = WakeModel(**PARAMS, CQ=0.05, domain_area=cls.area, numerics=n).solve(4, progress=False)
+
+    def test_march_and_cross_velocity_unchanged(self):
+        for r in (self.off, self.blk):
+            np.testing.assert_array_equal(r.marching_deficit, self.on.marching_deficit)
+            np.testing.assert_array_equal(r.streamwise_vorticity, self.on.streamwise_vorticity)
+        v1, w1 = self.on.sample_cross_velocity(252.0, [0.0, 50.0], 90.0)
+        v2, w2 = self.off.sample_cross_velocity(252.0, [0.0, 50.0], 90.0)
+        np.testing.assert_array_equal(v1, v2); np.testing.assert_array_equal(w1, w2)
+
+    def test_near_field_is_continuous(self):
+        # across the wake edge and across the rotor plane: no jumps larger than the local gradient allows
+        d0 = self.on._solver._p0["dU0"]
+        y = np.linspace(-120, 120, 481)
+        for x in (5.0, 63.0, 126.0):
+            prof = self.on.sample_deficit(x - y * np.tan(np.radians(25)), y, 90.0)
+            self.assertLess(np.max(np.abs(np.diff(prof))), 0.03 * d0)
+        x = np.linspace(-60, 60, 241)
+        line = self.on.sample_deficit(x, 0.0, 90.0)
+        self.assertLess(np.max(np.abs(np.diff(line))), 0.03 * d0)
+
+    def test_near_field_speed_up_beside_the_wake(self):
+        # just outside the near wake the displayed deficit is negative (speed-up) and vanishes downstream
+        R = self.on._solver.Reff0
+        x = np.array([63.0, 378.0]); z = 90.0 + 1.4 * R
+        self.assertLess(self.on.sample_deficit(x[0], 0.0, z), 0.0)
+        near = self.on.sample_deficit(x, 0.0, z) - self.off.sample_deficit(x, 0.0, z)    # the near-field part
+        self.assertTrue(near[0] < 0 and abs(near[1]) < 0.25 * abs(near[0]))
+
+    def test_blockage_offset(self):
+        s = self.blk._solver
+        x = np.array([126.0, 252.0, 378.0])
+        diff = self.blk.sample_deficit(x, 0.0, 90.0) - self.on.sample_deficit(x, 0.0, 90.0)
+        Q = s.du_hist.sum(axis=(1, 2)) * s.h ** 2
+        expect = -np.interp(x, s.xs, Q) / self.area * 0.5 * (1 + x / np.sqrt(x ** 2 + s.Reff0 ** 2))
+        np.testing.assert_allclose(diff, expect, rtol=1e-12, atol=1e-14)
+        self.assertTrue(np.all(diff < 0))                               # a speed-up
+        for bad in (np.nan, 1.0, -5.0):
+            with self.subTest(domain_area=bad), self.assertRaises(ValueError):
+                WakeModel(**PARAMS, domain_area=bad)
+        with self.assertRaises(TypeError):
+            WakeModel(**PARAMS, near_field="yes")
+
+    def test_turbine_passes_the_options(self):
+        from wakemarch import FixedTurbine
+        t = FixedTurbine(D=126, H=90, CT=0.8, CP=0.45)
+        m = t.wake_model(np.full(10, 8.0), TI=0.06, hub_depth=0.0, near_field=False, domain_area=self.area)
+        self.assertEqual((m.hub_depth, m.near_field, m.domain_area), (0.0, False, self.area))
 
 
 class CrossVelocityTests(unittest.TestCase):
@@ -212,7 +283,7 @@ class ProgressTests(unittest.TestCase):
 
     def test_bar_reports_failure_without_false_success(self):
         output = io.StringIO()
-        with patch('wakemarch.model.YawedWakeSolver.recommended', side_effect=RuntimeError('test failure')):
+        with patch('wakemarch.model.YawedWakeSolver', side_effect=RuntimeError('test failure')):
             with redirect_stderr(output), self.assertRaisesRegex(RuntimeError, 'test failure'):
                 WakeModel(**PARAMS).solve(0.6)
         self.assertIn('Stopped before completion', output.getvalue())
@@ -231,7 +302,7 @@ class ProgressTests(unittest.TestCase):
 class DiffusionTests(unittest.TestCase):
     def test_reused_factors_satisfy_variable_coefficient_system(self):
         from wakemarch._kernel import YawedWakeSolver
-        solver = YawedWakeSolver.recommended(**PARAMS, h_D=0.1)
+        solver = YawedWakeSolver(**PARAMS, h_D=0.1)
         rng = np.random.default_rng(418)
         field = rng.normal(size=(solver.nz, solver.ny))
         # Large coefficient contrast exercises stalled refinement and reuse.
@@ -240,15 +311,45 @@ class DiffusionTests(unittest.TestCase):
             for scale in (1., 1.01, 1.02, 1.4):
                 with self.subTest(ground=ground, scale=scale):
                     fast = solver.diffuse(field, scale*coefficient, 1., neumann_ground=ground)
-                    direct = solver.diffuse(field, scale*coefficient, 1., neumann_ground=ground, fast=False)
-                    np.testing.assert_allclose(fast, direct, rtol=1e-7, atol=1e-8)
                     rows = slice(None, -1) if ground else slice(1, -1)
                     x = fast[rows, 1:-1].ravel()
                     rhs = field[rows, 1:-1].ravel()
                     cv = (scale*coefficient)[rows, 1:-1].ravel()
                     operator = solver._L_du if ground else solver._L_int
+                    direct = spsolve((identity(len(cv), format='csc') - diags(cv) @ operator).tocsc(), rhs)
+                    np.testing.assert_allclose(x, direct, rtol=1e-7, atol=1e-8)
                     residual = rhs - (x - cv*(operator @ x))
                     self.assertLess(np.linalg.norm(residual)/np.linalg.norm(rhs), 1e-9)
+
+
+class ModelInputTests(unittest.TestCase):
+    def test_rotation_and_thrust_inputs(self):
+        for key, value in [("CQ", -0.1), ("CQ", np.nan), ("rotor_sense", "left"), ("thrust_ratio", 0), ("thrust_ratio", 1.5)]:
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                WakeModel(**(PARAMS | {key: value}))
+        WakeModel(**PARAMS, CQ=0.05, rotor_sense="counterclockwise", thrust_ratio=0.8)
+
+    def test_mirror_symmetry_with_rotation(self):
+        # +yaw with a clockwise rotor mirrors -yaw with a counterclockwise rotor about y = 0
+        n = Numerics(h_D=0.1)
+        a = WakeModel(**(PARAMS | dict(yaw_deg=25)), CQ=0.05, rotor_sense="clockwise", numerics=n).solve(4, progress=False)
+        b = WakeModel(**(PARAMS | dict(yaw_deg=-25)), CQ=0.05, rotor_sense="counterclockwise", numerics=n).solve(4, progress=False)
+        y = np.linspace(-150, 150, 31); z = np.linspace(20, 180, 17)
+        Y, Z = np.meshgrid(y, z)
+        for x in (252.0, 504.0):
+            np.testing.assert_allclose(a.sample_deficit(x, Y, Z), b.sample_deficit(x, -Y, Z), atol=1e-9)
+
+    def test_initial_circulation_from_the_force(self):
+        from wakemarch._kernel import YawedWakeSolver
+        s = YawedWakeSolver(**PARAMS, h_D=1 / 20)
+        du, om = s.initialize()
+        up, dn = s.circulation_top(om)
+        g = np.radians(PARAMS["yaw_deg"])
+        gamma0 = 0.5 * PARAMS["D"] * PARAMS["U"] * PARAMS["CT"] * np.sin(g) * np.cos(g)   # 4 F_y/(pi rho D U), p = 2
+        self.assertLess(abs(up + dn), 0.01 * gamma0)   # hub height between grid rows: small sampling asymmetry
+        self.assertTrue(0.85 < -up / gamma0 < 1.05)
+        theta = s.momentum_deficit(du)
+        self.assertAlmostEqual(theta / s._p0["Tx"], 1.0, places=8)
 
 
 if __name__ == "__main__":

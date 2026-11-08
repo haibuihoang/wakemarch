@@ -81,16 +81,19 @@ assert np.isfinite(velocity).all()
 
 Both methods accept scalars, lists and broadcastable arrays. Deficit means
 background minus streamwise velocity, in m/s. It is not normalized by inflow.
-Sampling includes the accepted near-wake display ramp; raw histories do not.
+Sampling includes the near field of the rotor (the actuator-disk vortex cylinder:
+half the deficit at the rotor plane, a slight speed-up beside the near wake, the
+induction zone upstream); raw histories do not.
 
-Upstream of the tilted rotor (`x_s < 0`), deficit is zero. Downstream samples
+Upstream of the tilted rotor (`x_s < 0`) the deficit is the induction zone (zero
+with `near_field=False`). Downstream samples
 outside the stored x/y/z support raise `ValueError`. Explicit `bounds="zero"`
 extends deficit by zero and streamwise velocity by the background value. This
 extension is not a prediction that a truncated wake has recovered. Negative
 heights and nonfinite coordinates always raise errors.
 
 ```python
-assert result.sample_deficit(-model.D, 0, model.H) == 0
+assert result.sample_deficit(-model.D, 0, model.H) > 0      # induction zone
 try:
     result.sample_deficit(100*model.D, 0, model.H)
 except ValueError:
@@ -107,13 +110,33 @@ along +z) velocities in m/s, with the same coordinates and `bounds` rules as
 `sample_deficit`. They are the total in-plane flow that transports the wake in the
 solver: the flow induced by the streamwise vorticity (the counter-rotating vortex
 pair of a yawed rotor) plus the entrainment flow from the streamwise velocity
-change, with `w = 0` at the ground. The near-wake display ramp is not applied.
+change, with `w = 0` at the ground. The near-field display is not applied.
 The fields are computed on the first call (one Poisson solve per stored plane).
 
 ```python
 v, w = result.sample_cross_velocity(5*model.D, yy, zz)
 assert v.shape == w.shape == (51, 81)
 assert result.sample_cross_velocity(-model.D, 0, model.H) == (0.0, 0.0)
+```
+
+## Switching model parts on and off
+
+For comparisons with other rotors and for sensitivity tests, four parts are inputs of `WakeModel`
+(and of `Turbine.wake_model`):
+
+| input | default | effect |
+| --- | --- | --- |
+| `hub_depth` | 0.6 | depth of the hub hole of the initial wake; 0 removes it (e.g. a lab rotor with a nacelle) |
+| `near_field` | True | near field of the rotor (display only); False shows the developed wake from the rotor plane |
+| `domain_area` | None | cross-section in m^2 of a confined domain (LES, closed wind tunnel): uniform blockage speed-up from the wake's own flux deficit |
+| `CQ` | None | rotor torque coefficient for the wake rotation; None omits it |
+
+`near_field` and `domain_area` change only what is sampled, not the march: the wake position and the
+cross-plane velocities are the same.
+
+```python
+open_flow = WakeModel(D=126, H=90, U=8, CT=0.8, yaw_deg=25, TI=0.06)
+tunnel = WakeModel(D=126, H=90, U=8, CT=0.8, yaw_deg=25, TI=0.06, hub_depth=0.0, domain_area=30 * 126**2)
 ```
 
 ## Numerical settings and results
@@ -141,7 +164,7 @@ for every lateral position on every requested physical plane.
 | `x` | Stored marching positions x_s, m |
 | `y` | Lateral mesh, m |
 | `z`, `z_relative` | Absolute and hub-relative heights, m |
-| `marching_deficit` | Unramped deficit, m/s |
+| `marching_deficit` | Marched (developed-wake) deficit without the near-field display, m/s |
 | `streamwise_vorticity` | Streamwise vorticity, 1/s |
 | `streamwise_velocity_derivative` | Stored u_x field, 1/s; initial plane zero |
 

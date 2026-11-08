@@ -104,18 +104,33 @@ or `Turbine.fixed(...)` for constant coefficients. See
 - `Numerics` groups grid and stepping choices. Defaults are grid D/30, lateral
   width 8D, top 3.5D **above hub**, dx=0.1D, requested storage interval=0.25D.
   There is no automatic coarsening. Ground and open boundaries are enabled.
-- `WakeModel` uses the recommended thrust exponent 2, vortex diffusivity factor
-  0.5, momentum fraction 0.95, and near-wake display ramp (0.5, 1D). Historical
-  empirical additions are not exposed in the public API.
+- `WakeModel` (0.3): thrust law `T_x = T_x0 cos^2(yaw)` (or a measured
+  `thrust_ratio`), circulation `4 F_y / (pi rho D U)`, initial deficit of the unyawed
+  wake projected on the stream, momentum fraction 0.95, eddy viscosity
+  `cos^2(yaw) k_w sigma u_bar F(x/x0)` delayed over the near-wake length
+  (`F = 1 - (1 - 2 xi^2) exp(-xi^2)`), vortex diffusivity 0.25 of the eddy viscosity, hub deficit and
+  edge thickness of an actuator disk without nacelle, and the near field of the rotor
+  displayed as the actuator-disk vortex cylinder (no constant).
+- Wake rotation: give the rotor torque coefficient `CQ = Q/(0.5 rho pi R^3 U^2)`
+  (or `C_P / tip-speed ratio`) and `rotor_sense` (`"clockwise"` by default, seen
+  from upstream). It sets the lateral offset of the unyawed wake and the asymmetry
+  between positive and negative yaw. `CQ=None` omits the rotation.
+- `hub_depth` (default 0.6) is the depth of the hub deficit of the initial wake, fitted
+  on an LES actuator disk without nacelle; use a smaller value or 0 for a rotor with a nacelle.
+- Switches for comparisons and sensitivity tests: `hub_depth=0` (no hub hole),
+  `near_field=False` (developed wake from the rotor plane, no near-field display),
+  `domain_area=A` (blockage of a confined domain of cross-section A in m^2, e.g. an LES
+  domain or a closed wind tunnel; default None, open atmosphere), `CQ=None` (no rotation).
 - `solve()` returns an independent `WakeResult`; solving again never changes a
   previous result. Inputs/settings are immutable dataclasses.
 - Sampling accepts scalars or broadcastable arrays. `sample_deficit` includes
-  reconstruction and the display ramp; `sample_streamwise_velocity` subtracts
+  reconstruction and the near-field display; `sample_streamwise_velocity` subtracts
   this from the same power-law background used by the model.
   `sample_cross_velocity` returns the cross-plane velocities `(v, w)` (lateral,
   vertical): the total in-plane flow the solver uses to transport the wake
-  (vortex-induced plus entrainment), without the display ramp.
-- Upstream of the tilted rotor (`x + y*tan(yaw) < 0`), deficit is zero. Outside
+  (vortex-induced plus entrainment), without the near-field display.
+- Upstream of the tilted rotor (`x + y*tan(yaw) < 0`) the deficit is the induction
+  zone of the rotor (zero with `near_field=False`). Outside
   downstream stored support the default is an error. `bounds="zero"` explicitly
   requests a zero-deficit extension (background streamwise velocity).
   Nonfinite coordinates and negative heights raise errors.
@@ -123,8 +138,8 @@ or `Turbine.fixed(...)` for constant coefficients. See
   cross-plane. `result.z` is absolute height; `z_relative` is relative to hub.
   `marching_deficit`, `streamwise_vorticity`, and
   `streamwise_velocity_derivative` have axes `(x_s, z_relative, y)` and units m/s,
-  1/s and 1/s. They are read-only views; the histories do not include the display
-  ramp. Use the sampling methods for physical-space visualizations.
+  1/s and 1/s. They are read-only views; the histories do not include the near-field
+  display. Use the sampling methods for physical-space visualizations.
 
 The kernel marches an extra yaw-dependent distance for reconstruction. With
 dx=0.1D, requested storage 0.25D stores at 0.3D spacing (storage happens on
@@ -154,10 +169,10 @@ keeps its own licence and access terms.
 
 ## Development and provenance
 
-See [provenance](https://github.com/haibuihoang/wakemarch/blob/main/PROVENANCE.md). `wakemarch._kernel` is private; its many
-historical research switches are not a supported public interface. The package
-reproduces eight frozen reference cases of the authors' research solver to
-rtol=1e-7, atol=1e-8 (`tools/check_release.py` runs the portable checks).
+See [provenance](https://github.com/haibuihoang/wakemarch/blob/main/PROVENANCE.md). `wakemarch._kernel` is private and
+not a supported public interface. The march reproduces the authors' research
+solver on eight cases to a relative difference of 1.5e-9
+(`tools/check_release.py` runs the portable checks).
 
 ## Licence
 

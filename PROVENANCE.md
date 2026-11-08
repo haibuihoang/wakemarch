@@ -1,40 +1,46 @@
 # Provenance
 
-WakeMarch packages the recommended configuration
-(`YawedWakeSolver.recommended(...)`) of the authors' research solver
-`src/curl_pns.py`, SHA-256
-`f3dce8e95c77942caf59c8a0745d9ff6d2f9ed4ab642062cec46e752856a33fc`
-(research repository commit `3027932`). The solver is project research code,
-not the official implementation of any comparison model.
+WakeMarch 0.3 packages the final single-turbine model of the accompanying paper.
+It was developed with the authors' research solver `src/curl_pns.py` (with
+`src/wake_inputs.py`) in the paper companion repository; the research solver
+keeps the experimental switches of the development, the package only the final
+model. The solver is project research code, not the official implementation of
+any comparison model.
 
 ## Kernel
 
-`src/wakemarch/_kernel.py` is a copy of that solver with:
+`src/wakemarch/_kernel.py` contains the final model only:
 
-- explanatory comments and an optional progress observer;
-- caching of fixed advection and multipole geometry;
-- reuse of the exact variable-coefficient diffusion factorization as the next
-  preconditioner after a stalled refinement.
+- the march of the developed wake (deficit and streamwise vorticity, entrainment
+  from continuity, open far field and impermeable ground);
+- the rotor force, the projected initial deficit with hub term and smoothed edge,
+  the force-based circulation and the hub vortex from the torque;
+- the eddy viscosity `cos^2(yaw) k_w sigma u_bar F(x/x0)` with `A = 2`;
+- the near field of the rotor (display only), as a superposition of semi-infinite
+  vortex cylinders of the initial profile, and the optional blockage offset of a
+  confined domain;
+- caching of fixed advection and multipole geometry, an optional progress
+  observer, and reuse of the variable-coefficient diffusion factorization.
 
-The discrete operators, residual threshold (1e-9), precision, grid, physics and
-fitted constants are unchanged. Iteration paths can differ, so equality is
-checked numerically, not textually: the installed package reproduces eight
-frozen reference cases of the research solver (zero, positive, negative and
-40° yaw; shear; low/high turbulence; coarse and fine grids) at rtol=1e-7,
-atol=1e-8. This holds from NumPy 1.24.4/SciPy 1.10.1 to NumPy 2.4/SciPy 1.17.
-The reference arrays are kept with the authors' development records and are not
-shipped.
+Equality of the march is checked numerically: in the same configuration the
+package reproduces the research solver on eight cases (zero, positive, negative
+and 40° yaw; shear; low and high turbulence; measured thrust ratio; no hub term;
+coarse and fine grids) with a maximum relative difference of 1.5e-9 in the deficit,
+the vorticity and the sampled field (research solver SHA-256
+`ec4739276b0bf7f41035f6dee7906c56cbd668779f1e697f1fe6a57653be87f2`, 2026-11-08).
+The near-field display and the blockage offset are package code; they do not
+change the march. The results of the paper were computed with this kernel
+(release candidate 0.3.0rc2, numerically identical to 0.3.0).
 
 ## Added code
 
 - The public API (`WakeModel`, `Numerics`, `WakeResult`), input checks,
-  explicitly named sampling methods and tests. No change to model equations or
-  fitted constants.
+  explicitly named sampling methods and tests.
 - `Turbine` (power/CT and CP/CT tables, presets, rotor-equivalent operating
   point) and `Turbine.fixed` (constant coefficients). Three reference tables are
   pinned from FLORIS 4.6.2 with their source hashes and licence
   (`src/wakemarch/data/`).
 
-An independently developed set of additional wake corrections was evaluated and
-not adopted; it is not part of the package. Packaging does not establish new
-scientific claims; see [scientific scope](docs/SCIENCE.md).
+Model options tested during the development and not adopted are not part of the
+package. Packaging does not establish new scientific claims; see
+[scientific scope](docs/SCIENCE.md).

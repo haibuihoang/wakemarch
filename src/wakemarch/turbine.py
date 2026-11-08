@@ -199,8 +199,13 @@ class Turbine:
             power = self.power_at(effective)
         return OperatingPoint(mean, rews, effective, ct, power, bool(operating))
 
-    def wake_model(self, rotor_velocities, *, TI, yaw_deg=0., rho=None, weights=None, numerics=None):
-        """Build the unchanged uniform-background wake model at this rotor operating point.
+    def wake_model(self, rotor_velocities, *, TI, yaw_deg=0., rho=None, weights=None, numerics=None,
+                   CQ=None, rotor_sense='clockwise', hub_depth=0.6, near_field=True,
+                   domain_area=None):
+        """Build the uniform-background wake model at this rotor operating point.
+
+        CQ and rotor_sense set the wake rotation; hub_depth, near_field and domain_area
+        switch the hub deficit, the near-field display and the blockage offset (see WakeModel).
 
         The incoming distribution is reduced to U_RE; its spatial structure is
         not transported into the new wake. Use the direct WakeModel constructor
@@ -211,7 +216,9 @@ class Turbine:
         if not point.operating:
             raise ValueError('Non-operating turbine has no supported active-wake solve')
         return WakeModel(D=self.D, H=self.H, U=point.rotor_equivalent_m_s, CT=point.CT,
-                         TI=TI, yaw_deg=yaw_deg, numerics=Numerics() if numerics is None else numerics)
+                         TI=TI, yaw_deg=yaw_deg, CQ=CQ, rotor_sense=rotor_sense,
+                         hub_depth=hub_depth, near_field=near_field, domain_area=domain_area,
+                         numerics=Numerics() if numerics is None else numerics)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -252,9 +259,13 @@ class FixedTurbine:
             raise ValueError('Rotor operating point overflow')
         return OperatingPoint(mean, rews, float(effective), self.CT, float(power), True)
 
-    def wake_model(self, rotor_velocities, *, TI, yaw_deg=0., rho=1.225, weights=None, numerics=None):
+    def wake_model(self, rotor_velocities, *, TI, yaw_deg=0., rho=1.225, weights=None, numerics=None,
+                   CQ=None, rotor_sense='clockwise', hub_depth=0.6, near_field=True,
+                   domain_area=None):
         """Use the arithmetic disk-mean source speed, as in the fixed farm prototype."""
         from .model import WakeModel, Numerics
         point = self.operating_point(rotor_velocities, yaw_deg=yaw_deg, rho=rho, weights=weights)
         return WakeModel(D=self.D, H=self.H, U=point.rotor_mean_m_s, CT=self.CT,
-                         TI=TI, yaw_deg=yaw_deg, numerics=Numerics() if numerics is None else numerics)
+                         TI=TI, yaw_deg=yaw_deg, CQ=CQ, rotor_sense=rotor_sense,
+                         hub_depth=hub_depth, near_field=near_field, domain_area=domain_area,
+                         numerics=Numerics() if numerics is None else numerics)

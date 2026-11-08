@@ -26,9 +26,9 @@ python -I -B tools/check_release.py --offline --notebooks --output /tmp/wakemarc
 
 This mode inherits local numerical/notebook/build dependencies; it is **not**
 fresh dependency resolution. Its result records `isolated_dependencies=false`.
-The authors additionally compare every release with eight frozen reference
-cases of the research solver at rtol=1e-7, atol=1e-8; those reference arrays are
-not shipped.
+The authors additionally compare every release with the research solver on
+eight cases (`scripts/check_package_030rc2.py` of the paper companion); the
+research solver is not shipped.
 
 ## Continuous integration
 

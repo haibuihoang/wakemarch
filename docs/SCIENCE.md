@@ -1,10 +1,13 @@
 # Scientific scope and evidence
 
-WakeMarch implements the accepted recommended single-turbine model: thrust
-exponent 2, vortex diffusivity factor 0.5, momentum fraction 0.95, and display
-ramp (0.5, 1D). The package does not expose historical optional empirical
-corrections as supported public settings. The combined independent-correction
-experiment remains archived and is not the production model.
+WakeMarch 0.3 implements the single-turbine model of the accompanying paper: thrust
+exponent 2, force-based circulation, projected initial deficit, momentum fraction
+0.95, eddy viscosity delayed over the near-wake length with A = 2, vortex diffusivity
+factor 0.25, and the near field of the rotor displayed as a superposition of
+actuator-disk vortex cylinders. Optional inputs switch the hub term, the
+near-field display, the wake rotation and the blockage of a confined domain;
+the package does not expose the options tested and not adopted during the
+development.
 
 The intended first audience is researchers. The model has known near-wake,
 high-turbulence and high-yaw/far-wake limitations. It does not resolve wake
@@ -22,8 +25,9 @@ empirical predictions are not proof of exact conservation or force consistency.
 
 - API tests: input conventions, sampling, progress, independent results and
   diffusion residual checks.
-- Frozen-array comparisons: implementation agreement with eight accepted
-  research cases at rtol=1e-7, atol=1e-8. These are not observational error bars.
+- Research-solver comparison: the march agrees with the authors' research solver
+  on eight cases to a relative difference of 1.5e-9. This is implementation
+  agreement, not an observational error bar.
 - Grid notebook: differences between numerical resolutions for a specified case.
   Its finest grid is a reference, not a converged solution or observation.
 - Historical numerical tests: manufactured operators, symmetry and approximate
@@ -59,11 +63,11 @@ definitions; the single-wake downstream rotor u³ proxy is insufficient.
 
 ## Paper linkage
 
-`release-metadata.json` records publication metadata. The paper's figures were
-produced with the authors' research solver, which this package reproduces to
-rtol=1e-7 on eight reference cases; the paper-specific software version is
-recorded once figure reproduction with the package has been verified. Until the
-paper reference is available, see [citation](../CITATION.md).
+`release-metadata.json` records publication metadata. The results of the paper
+were computed with the kernel of this package (release candidate 0.3.0rc2,
+numerically identical to 0.3.0); the ablation variants of the paper use the
+research solver. Until the paper reference is available, see
+[citation](../CITATION.md).
 
 ## Reference turbine performance inputs
 

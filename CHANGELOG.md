@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 follow-up
+
+- Zenodo DOI of 0.3.1 (10.5281/zenodo.24165771) in CITATION.cff and release metadata.
+
 ## 0.3.1 — 2026-11-12
 
 Fix found in the critical review of the accompanying paper (R1).

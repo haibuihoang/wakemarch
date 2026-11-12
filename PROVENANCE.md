@@ -23,14 +23,13 @@ any comparison model.
   observer, and reuse of the variable-coefficient diffusion factorization.
 
 Equality of the march is checked numerically: in the same configuration the
-package reproduces the research solver on eight cases (zero, positive, negative
+package reproduces the research solver on nine cases (zero, positive, negative
 and 40° yaw; shear; low and high turbulence; measured thrust ratio; no hub term;
-coarse and fine grids) with a maximum relative difference of 1.5e-9 in the deficit,
-the vorticity and the sampled field (research solver SHA-256
-`ec4739276b0bf7f41035f6dee7906c56cbd668779f1e697f1fe6a57653be87f2`, 2026-11-08).
+coarse and fine grids; C_T 0.95 at 30° yaw) with a maximum relative difference of
+1.7e-9 in the deficit, the vorticity and the sampled field (research solver SHA-256
+`3fc9018e782baa5a02559dd0beac8dafd2fd2447fffa29b65dc23d9fe6be2a23`, 2026-11-10).
 The near-field display and the blockage offset are package code; they do not
-change the march. The results of the paper were computed with this kernel
-(release candidate 0.3.0rc2, numerically identical to 0.3.0).
+change the march. The results of the paper were computed with this kernel (0.3.1).
 
 ## Added code
 

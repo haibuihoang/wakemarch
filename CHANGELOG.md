@@ -1,7 +1,16 @@
 # Changelog
 
-## 0.3.x follow-up
+## 0.3.1 — 2026-11-12
 
+Fix found in the critical review of the accompanying paper (R1).
+- The initial momentum deficit is now `eta * T_x / rho` at every yaw angle, as documented. In 0.3.0 the
+  momentum target used the normal-velocity thrust coefficient `eta C_T thrust_ratio / cos^3(yaw)` capped at
+  0.97, so strongly yawed or heavily loaded rotors started with less momentum (LES rotor, C_T 0.83: 0.894 instead
+  of 0.95 T_x at 40 deg; C_T 0.95: 0.884 at 30 deg). Results differ from 0.3.0 only where that cap was active.
+  The cap remains in the amplitude of the initial vortex sheet (V = Gamma0 / (2 R_n cos(yaw))) and in the axial
+  induction of the hub vortex, where it keeps normal-velocity momentum theory real; the sheet carries 0.88-1.03
+  Gamma0. Normalising the sheet to exactly Gamma0 was tested and rejected (wakes over-deflected).
+- New module constant `FIXED_POINT_PASSES` (3, unchanged) of the continuity coupling, for convergence checks.
 - Zenodo DOI of 0.3.0 (10.5281/zenodo.24057965) in CITATION.cff and release metadata.
 
 ## 0.3.0 — 2026-11-08

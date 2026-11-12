@@ -64,8 +64,7 @@ definitions; the single-wake downstream rotor u³ proxy is insufficient.
 ## Paper linkage
 
 `release-metadata.json` records publication metadata. The results of the paper
-were computed with the kernel of this package (release candidate 0.3.0rc2,
-numerically identical to 0.3.0); the ablation variants of the paper use the
+were computed with the kernel of this package (0.3.1); the ablation variants of the paper use the
 research solver. Until the paper reference is available, see
 [citation](../CITATION.md).
 

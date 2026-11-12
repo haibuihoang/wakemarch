@@ -1,4 +1,4 @@
-"""Numerical kernel of WakeMarch 0.3 (internal module; use WakeModel).
+"""Numerical kernel of WakeMarch 0.3.1 (internal module; use WakeModel).
 
 A cross-plane marching model of the wake of one yawed turbine (manuscript, Section 2):
 streamwise deficit and streamwise vorticity marched downstream on planes parallel to
@@ -23,8 +23,9 @@ KAPPA_OMEGA = 0.25        # vorticity diffusivity / eddy viscosity
 EDGE = 0.2                # thickness of the smoothed initial wake edge (units of the wake radius)
 HUB_DEPTH, HUB_RADIUS = 0.6, 0.35   # hub deficit f = 1 - h exp(-(rho/rho_h)^2)
 HUB_CORE_D = 0.11         # Gaussian core of the hub vortex (units of D)
-CT_CAP = 0.97             # largest normal-velocity thrust coefficient used for the induction factor
+CT_CAP = 0.97             # largest normal-velocity thrust coefficient in the sheet amplitude and the induction factor (not in the momentum)
 NMULT = 14                # multipole terms of the open far field
+FIXED_POINT_PASSES = 3    # passes of the u_x <-> entrainment-potential coupling per step
 NF_CORE = 0.02            # vortex core of the near-field sheet (units of R_w); regularises points on the sheet
 
 
@@ -137,7 +138,7 @@ class YawedWakeSolver:
         self.CQ, self.rotor_sense, self.hub_depth = CQ, rotor_sense, hub_depth
         c = np.cos(self.yaw)
         self.thrust_ratio = float(c ** THRUST_EXP) if thrust_ratio is None else float(thrust_ratio)
-        self.CT_n = float(min(CT * self.thrust_ratio * ETA / c**3, max(CT_CAP, CT)))   # normal-velocity thrust coefficient
+        self.CT_n = float(min(CT * self.thrust_ratio * ETA / c**3, max(CT_CAP, CT)))   # normal-velocity thrust coefficient (sheet amplitude only)
         self.CT_0 = float(min(CT * ETA, max(CT_CAP, CT)))                              # unyawed wake thrust coefficient
         self.x0 = near_wake_length(CT, TI) * D
         self.near_field = bool(near_field)                      # display of the rotor near field (vortex cylinder)
@@ -167,9 +168,9 @@ class YawedWakeSolver:
         A = np.pi * self.D**2 / 4
         dU0 = (1 - np.sqrt(1 - self.CT_0)) * U * c                       # projected deficit
         uw0 = U - dU0
-        Tx = 0.5 * A * U**2 * self.CT_n * c**3                           # wake momentum eta T_x / rho
+        Tx = 0.5 * A * U**2 * ETA * self.CT * self.thrust_ratio          # wake momentum eta T_x / rho at every yaw (0.3.1: no cap)
         s_n = np.sqrt(1 - self.CT_n)                                     # normal-velocity actuator-disk theory:
-        Rn = np.sqrt(0.5 * A * U * c * (1 + s_n) / uw0 / (np.pi * c))    # wake radius (sets the sheet amplitude and the root bracket)
+        Rn = np.sqrt(0.5 * A * U * c * (1 + s_n) / uw0 / (np.pi * c))    # wake radius of that theory: sheet amplitude and root bracket
         Gamma0 = 0.5 * self.D * U * self.CT * np.sin(g) * c**2 * self.thrust_ratio / c**3   # 4 F_y / (pi rho D U)
         a = 0.5 * (1 - s_n)                                              # axial induction
         return dict(dU0=dU0, uw0=uw0, Tx=Tx, Rn=Rn, Gamma0=Gamma0, a=a)
@@ -200,8 +201,8 @@ class YawedWakeSolver:
         self._profile_norm = m0.sum() / (m0 * (1.0 - self.hub_depth * np.exp(-rho0 / HUB_RADIUS**2))).sum()
         mask = m0
         du = d0 * profile(Reff)
-        # omega = V dm/dz with V = Gamma0 / (2 R_n cos(yaw)); on the smoothed mask the upper half carries 0.91-1.00 Gamma0
-        # (normalising to exactly Gamma0 increased the LES wake-centre error by 11 %)
+        # omega = V dm/dz with V = Gamma0 / (2 R_n cos(yaw)); the upper half carries 0.88-1.03 Gamma0 (LES and tunnel inputs).
+        # Normalising it to exactly Gamma0 over-deflects the wake (LES centre error 0.027 -> 0.036 D; WP17, review R1).
         omega = p["Gamma0"] / (2 * p["Rn"] * c) * np.gradient(mask, self.h, axis=0)
         if self.CQ is not None and self.CQ > 0:                              # hub vortex from the torque, opposite circulation on the wake edge
             sign = -1.0 if self.rotor_sense == "clockwise" else 1.0
@@ -379,7 +380,7 @@ class YawedWakeSolver:
             uz, uy = np.gradient(u, self.h, self.h, edge_order=2)
             lap_u = self.laplacian(u - self.Ubg)
             v, w = vs, ws
-            for _ in range(3):                                          # u_x depends on (v, w), which depend on u_x through phi
+            for _ in range(FIXED_POINT_PASSES):                         # u_x depends on (v, w), which depend on u_x through phi
                 dudx = (nu * lap_u - (v * uy + w * uz)) / u
                 gz, gy = np.gradient(self.solve_phi(dudx), self.h, self.h, edge_order=2)
                 v, w = vs + gy, ws + gz

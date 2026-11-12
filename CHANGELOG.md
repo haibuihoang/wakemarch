@@ -12,6 +12,9 @@ Fix found in the critical review of the accompanying paper (R1).
   Gamma0. Normalising the sheet to exactly Gamma0 was tested and rejected (wakes over-deflected).
 - New module constant `FIXED_POINT_PASSES` (3, unchanged) of the continuity coupling, for convergence checks.
 - Zenodo DOI of 0.3.0 (10.5281/zenodo.24057965) in CITATION.cff and release metadata.
+- README: an overview figure of the model (curled wake marched on planes parallel to the yawed rotor) and
+  the plotting script of the example figure, now with the deficit in blue and the speed-up in red
+  (`examples/plot_wake.py` draws the same figure).
 
 ## 0.3.0 — 2026-11-08
 
